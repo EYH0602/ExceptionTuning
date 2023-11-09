@@ -39,7 +39,7 @@ The processed .jsonl files are also at ```./dataset```.
 
 For each file, each line in the uncompressed file represents one function. One row is illustrated below.
 
-   - **code:** the *path* to the source code
+   - **code:** the *path* to the source code, for example, `Python800/Project_CodeNet_Python800/p00000/s003971419.py`
    - **label:** the error type of the <code, line> pair
    - **index:** the index of example
    - **line:** the line of code that triggers the error
