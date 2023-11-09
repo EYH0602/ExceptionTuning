@@ -1,0 +1,8 @@
+apex
+tqdm
+transformers
+numpy
+torch
+scikit-learn
+tensorboardX
+ptvsd
