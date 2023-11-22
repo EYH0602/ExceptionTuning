@@ -73,7 +73,7 @@ def process_one_solution(
 def main(
     fuzz_dir_path="fuzz",
     code_dir_path="Project_CodeNet_Python800",
-    jobs=60,
+    jobs=80,
 ):
     # initialize for two plots
     err_dict: dict[str, list[int]] = {}
@@ -163,10 +163,11 @@ def main(
     plt.yscale("log")
     plt.xticks(uniq_keys)
     # plt.title("Histogram of the number of unique error(s)")
-    plt.savefig("unique_errors.png")
+    plt.savefig("unique_errors.png", bbox_inches="tight", dpi=300)
 
     plt.clf()  # clear plt
 
+    plt.figure(figsize=(8, 9.5))
     labels = list(err_type_dict.keys())
     cnts = list(err_type_dict.values())
     plt.bar(labels, cnts, align="center", alpha=0.7, color="blue")
@@ -175,7 +176,7 @@ def main(
     # plt.title("Bar plot of the number of errors in each type")
     plt.xticks(labels)
     plt.yscale("log")
-    plt.savefig("type_cnt_errors.png")
+    plt.savefig("type_cnt_errors.png", bbox_inches="tight", dpi=300)
 
 
 if __name__ == "__main__":
