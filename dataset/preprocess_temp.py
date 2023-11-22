@@ -149,16 +149,32 @@ def main(
                 uniq_dict[len(err_dict[key]) - 1] += 1
     print(uniq_dict)
     print(err_type_dict)
-    plt.bar(uniq_dict.keys(), uniq_dict.values(), align="center", alpha=0.7)  # type: ignore
+
+    uniq_keys = []
+    uniq_values = []
+    for k in uniq_dict:
+        if uniq_dict[k] != 0:
+            uniq_keys.append(k)
+            uniq_values.append(uniq_dict[k])
+
+    plt.bar(uniq_keys, uniq_values, align="center", alpha=0.7, color="blue")  # type: ignore
     plt.xlabel("number of unique error(s)")
     plt.ylabel("number of solution(s)")
+    plt.yscale("log")
+    plt.xticks(uniq_keys)
     plt.title("Histogram of the number of unique error(s)")
     plt.savefig("unique_errors.png")
 
-    plt.bar(err_type_dict.keys(), err_type_dict.values(), align="center", alpha=0.7)  # type: ignore
+    plt.clf()  # clear plt
+
+    labels = list(err_type_dict.keys())
+    cnts = list(err_type_dict.values())
+    plt.bar(labels, cnts, align="center", alpha=0.7, color="blue")
     plt.xlabel("Types of Error")
     plt.ylabel("number of errors")
     plt.title("Bar plot of the number of errors in each type")
+    plt.xticks(labels)
+    plt.yscale("log")
     plt.savefig("type_cnt_errors.png")
 
 
