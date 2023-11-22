@@ -48,9 +48,7 @@ def find_errorLine(text):
 err_dict = {}
 
 err_type_dict = {}
-err_type_list = ['IndexError', 'ImportError', 'ValueError']
-for i in err_type_list:
-    err_type_dict[i] = 0
+
 
 for dir in sorted(os.listdir(directory_path)):
     if dir != '.DS_Store':
@@ -78,12 +76,10 @@ for dir in sorted(os.listdir(directory_path)):
                     error_str = find_errorType(output)
                     err_dict[dir+'/'+item].append(error_str)
                     
-                    if error_str == 'IndexError':
-                        err_type_dict['IndexError'] += 1
-                    if error_str == 'ImportError':
-                        err_type_dict['ImportError'] += 1
-                    if error_str == 'ValueError':
-                        err_type_dict['ValueError'] += 1
+                    if error_str not in err_type_dict:
+                        err_type_dict[error_str] = 1
+                    else:
+                        err_type_dict[error_str] += 1
 
                     js={}
 
@@ -123,7 +119,7 @@ for key in err_dict:
         else: 
             uniq_dict[len(err_dict[key])-1] +=1
 print(uniq_dict)
-
+print(err_type_dict)
 plt.bar(uniq_dict.keys(), uniq_dict.values(),  align='center', alpha=0.7)
 plt.xlabel('number of unique error(s)')
 plt.ylabel('number of solution(s)')
