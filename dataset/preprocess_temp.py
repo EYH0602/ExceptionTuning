@@ -105,7 +105,7 @@ f_test.close()
 
 # this is the dict for the first plot
 uniq_dict= {}
-for i in range(6):
+for i in range(len(err_type_dict)):
     uniq_dict[i] = 0
 
 for key in err_dict:
