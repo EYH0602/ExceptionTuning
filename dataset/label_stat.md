@@ -1,0 +1,24 @@
+| Int Label |     Text Label      |  Count  |
+| :-------: | :-----------------: | :-----: |
+|     0     |     ValueError      | 7853425 |
+|     1     |       NoError       | 3926247 |
+|     2     |     IndexError      | 493291  |
+|     3     |    UnknownError     |  20605  |
+|     4     |   AssertionError    |  1217   |
+|     5     |      TypeError      |  26937  |
+|     6     |   AttributeError    |  9071   |
+|     7     | ModuleNotFoundError |  15173  |
+|     8     |      EOFError       | 236602  |
+|     9     |     ImportError     | 106224  |
+|    10     |      KeyError       |  30115  |
+|    11     |      NameError      |  9833   |
+|    12     |       OSError       |   390   |
+|    13     |     SyntaxError     |  46286  |
+|    14     |  ZeroDivisionError  |  2929   |
+|    15     |  UnboundLocalError  |  1207   |
+|    16     | UnicodeDecodeError  |    4    |
+|    17     |  FileNotFoundError  |   827   |
+|    18     |    OverflowError    |   46    |
+|    19     |   RecursionError    |   163   |
+|    20     |    RuntimeError     |   27    |
+|    21     |   PermissionError   |   25    |

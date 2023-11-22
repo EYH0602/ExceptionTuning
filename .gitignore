@@ -1,0 +1,9 @@
+.DS_Store
+
+dataset/fuzz
+dataset/Project_CodeNet_Python800
+
+*.png
+*.jsonl
+
+__pycache__/
