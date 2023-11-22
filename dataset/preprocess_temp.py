@@ -13,49 +13,47 @@ import fire
 import logging
 from os.path import join as pjoin, abspath
 from multiprocessing import Pool
+import re
+from label import LABELS, to_int_label
 
 
-def read_err_file(path):
-    input = open(path, "r", encoding="utf-8").read()
-    return input
+def parse_exception(traceback_str: str) -> tuple[str, str]:
+    # if empty, assume no error
+    if traceback_str == "":
+        return "NoError", ""
 
+    # regex to find the error type
+    error_type_pattern = r"^\w+Error"
+    error_type_match = re.search(error_type_pattern, traceback_str, re.MULTILINE)
 
-def find_error_type(text):
-    # todo: fix None
-    lines = text.splitlines()
+    # regex to find the line of code that caused the error
+    error_line_pattern = r'File ".*", line \d+, in .*\n\s+(.*)'
+    error_line_match = re.search(error_line_pattern, traceback_str, re.MULTILINE)
 
-    # Extract the string before ":" in the fourth line
-    if lines:
-        last_line = lines[-1].strip()
-        index_colon = last_line.find(":")
+    error_type = error_type_match.group() if error_type_match else "UnknownError"
+    error_line = error_line_match.group(1).strip() if error_line_match else ""
 
-        if index_colon != -1:
-            extracted_string = last_line[:index_colon].strip()
-            return extracted_string
-    else:
-        return "NoError"
-
-
-def find_error_line(text):
-    lines = text.splitlines()
-    if len(lines) > 1:
-        second_line_from_bottom = lines[-2].strip()
-        return second_line_from_bottom
-    else:
-        return ""
+    return error_type, error_line
 
 
 def get_err(file_path: str) -> tuple[str, str]:
+    """read in the give file and parse the exception
+
+    Args:
+        file_path (str): path to a stderr dump file
+
+    Returns:
+        tuple[str, str]: Error Type, Error Line
+    """
     with open(file_path) as f:
         traceback = f.read()
-    error_type = find_error_type(traceback)
-    error_line = find_error_line(traceback)
-    return str(error_type), error_line
+
+    return parse_exception(traceback)
 
 
 def process_one_solution(
     fuzz_dir_path, code_dir_path, p: str, s: str, cont: int
-) -> tuple[list[str], dict]:
+) -> tuple[list[int], dict]:
     fuzz_path = pjoin(fuzz_dir_path, p, s, "default")
     if not os.path.exists(fuzz_path):
         return [], {}
@@ -65,11 +63,11 @@ def process_one_solution(
 
     # use first instance as data for faster training
     js["index"] = str(cont)
-    js["label"] = errs[0][0]
+    js["label"] = to_int_label(errs[0][0]).unwrap()
     js["error"] = errs[0][1]
     with open(pjoin(code_dir_path, p, s), encoding="latin-1") as f:
         js["code"] = f.read()
-    return list(map(lambda x: x[0], errs)), js
+    return list(map(lambda x: to_int_label(x[0]).unwrap(), errs)), js
 
 
 def main(
@@ -78,8 +76,8 @@ def main(
     jobs=60,
 ):
     # initialize for two plots
-    err_dict: dict[str, list[str]] = {}
-    err_type_dict: dict[str, int] = {}
+    err_dict: dict[str, list[int]] = {}
+    err_type_dict: dict[int, int] = {}
 
     f_train = open("train_err_cls.jsonl", "w")
     f_valid = open("valid_err_cls.jsonl", "w")
@@ -97,8 +95,8 @@ def main(
 
     logging.info("Analyzing errors")
     with Pool(jobs) as pool:
-        results = tqdm(
-            pool.starmap(process_one_solution, solutions), total=len(solutions)
+        results = list(
+            tqdm(pool.starmap(process_one_solution, solutions), total=len(solutions))
         )
 
     logging.info("Writing results to files")
