@@ -1,3 +1,5 @@
+#!/bin/bash
+
 model='codebert-base'
 ifraw='False'
 error_prompt='error is in line:'
@@ -11,9 +13,9 @@ CUDA_VISIBLE_DEVICES=0,1 python3 run.py \
                 --tokenizer_name=../microsoft/$model \
                 --do_train \
                 --do_test \
-                --train_data_file=../dataset/train_fuzz_cls.jsonl \
-                --eval_data_file=../dataset/valid_fuzz_cls.jsonl \
-                --test_data_file=../dataset/test_fuzz_cls.jsonl \
+                --train_data_file=../dataset/train_err_cls.jsonl \
+                --eval_data_file=../dataset/valid_err_cls.jsonl \
+                --test_data_file=../dataset/test_err_cls.jsonl \
                 --epoch 10 \
                 --block_size 512 \
                 --train_batch_size 32 \
