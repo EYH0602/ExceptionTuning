@@ -1,11 +1,9 @@
-model='unixcoder-base'
+model='codebert-base'
 ifraw='False'
-input_prompt='cin>>'
-output_prompt='cout<<'
-input_prompt_sep=';'
-n_class=104
+error_prompt='error is in line:'
+n_class=22
 
-CUDA_VISIBLE_DEVICES=0,1 nohup python run.py \
+CUDA_VISIBLE_DEVICES=0,1 python3 run.py \
                 --output_dir=./savedmodels \
                 --model_type=roberta_cls \
                 --config_name=../microsoft/$model \
@@ -23,9 +21,7 @@ CUDA_VISIBLE_DEVICES=0,1 nohup python run.py \
                 --learning_rate 2e-5 \
                 --max_grad_norm 1.0 \
                 --evaluate_during_training \
-                --input_prompt "$input_prompt" \
-                --output_prompt "$output_prompt" \
-                --input_prompt_sep $input_prompt_sep \
+                --error_prompt "$error_prompt" \
                 --need_raw $ifraw \
                 --nohang \
                 --nocrash \
