@@ -1,11 +1,11 @@
-model='unixcoder-base'
-ifraw='False'
-input_prompt='cin>>'
-output_prompt='cout<<'
-input_prompt_sep=';'
-n_class=104
+#!/bin/bash
 
-CUDA_VISIBLE_DEVICES=0,1 nohup python run.py \
+model='codebert-base'
+ifraw='False'
+error_prompt='error is in line:'
+n_class=22
+
+CUDA_VISIBLE_DEVICES=0,1 python3 run.py \
                 --output_dir=./savedmodels \
                 --model_type=roberta_cls \
                 --config_name=../microsoft/$model \
@@ -13,9 +13,9 @@ CUDA_VISIBLE_DEVICES=0,1 nohup python run.py \
                 --tokenizer_name=../microsoft/$model \
                 --do_train \
                 --do_test \
-                --train_data_file=../dataset/train_fuzz_cls.jsonl \
-                --eval_data_file=../dataset/valid_fuzz_cls.jsonl \
-                --test_data_file=../dataset/test_fuzz_cls.jsonl \
+                --train_data_file=../dataset/train_err_cls.jsonl \
+                --eval_data_file=../dataset/valid_err_cls.jsonl \
+                --test_data_file=../dataset/test_err_cls.jsonl \
                 --epoch 10 \
                 --block_size 512 \
                 --train_batch_size 32 \
@@ -23,9 +23,7 @@ CUDA_VISIBLE_DEVICES=0,1 nohup python run.py \
                 --learning_rate 2e-5 \
                 --max_grad_norm 1.0 \
                 --evaluate_during_training \
-                --input_prompt "$input_prompt" \
-                --output_prompt "$output_prompt" \
-                --input_prompt_sep $input_prompt_sep \
+                --error_prompt "$error_prompt" \
                 --need_raw $ifraw \
                 --nohang \
                 --nocrash \

@@ -5,5 +5,11 @@ dataset/Project_CodeNet_Python800
 
 *.png
 *.jsonl
+*.json
 
 __pycache__/
+
+microsoft/*
+log.txt
+
+cls/savedmodels/*
