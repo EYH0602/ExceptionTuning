@@ -21,7 +21,7 @@ from torch.utils.data import (
     TensorDataset,
 )
 from torch.utils.data.distributed import DistributedSampler
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 import json
 
 try:
@@ -97,8 +97,11 @@ def convert_examples_to_features(js, tokenizer, args) -> list[InputFeatures]:
     source_type_ids = [0] * len(source_ids)
     source_pos_ids = [i for i in range(2, len(source_ids) + 2)]
 
-    """add fuzz data"""
+    """add error data"""
     error_prompt = tokenizer.tokenize(args.error_prompt)
+    error_type_ids = []
+    error_pos_ids = []
+    error_tokens = []
 
     # using prompt
     error_tokens = (
@@ -531,7 +534,17 @@ def test(args, model, tokenizer):
     eval_loss = eval_loss / nb_eval_steps
     perplexity = torch.tensor(eval_loss)
 
-    result = {"test_loss": float(perplexity), "test_acc": float(eval_acc)}
+    test_f1 = f1_score(labels, vecs, average="macro")
+    test_precision = precision_score(labels, vecs, average="macro")
+    test_recall = recall_score(labels, vecs, average="macro")
+
+    result = {
+        "test_loss": float(perplexity),
+        "test_acc": float(eval_acc),
+        "test_f1": float(test_f1),
+        "test_precision": float(test_precision),
+        "test_recall": float(test_recall),
+    }
 
     return result
 
