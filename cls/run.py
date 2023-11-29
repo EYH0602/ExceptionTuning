@@ -87,7 +87,9 @@ class InputFeatures(object):
         self.pos_ids = pos_ids
 
 
-def convert_examples_to_features(js, tokenizer, args) -> list[InputFeatures]:
+def convert_examples_to_features(
+    js, tokenizer, args, w_error=True
+) -> list[InputFeatures]:
     # source
     results = []
     code = " ".join(js["code"].split())
@@ -99,16 +101,18 @@ def convert_examples_to_features(js, tokenizer, args) -> list[InputFeatures]:
 
     """add error data"""
     error_prompt = tokenizer.tokenize(args.error_prompt)
-    error_type_ids = []
-    error_pos_ids = []
-    error_tokens = []
 
-    # using prompt
-    error_tokens = (
-        error_prompt + tokenizer.tokenize(js["error"]) + [tokenizer.sep_token]
-    )
-    error_type_ids = [514 + i for i in range(len(error_tokens))]
-    error_pos_ids = [1] * len(error_tokens)
+    if not w_error:
+        error_type_ids = []
+        error_pos_ids = []
+        error_tokens = []
+    else:
+        # using prompt
+        error_tokens = (
+            error_prompt + tokenizer.tokenize(js["error"]) + [tokenizer.sep_token]
+        )
+        error_type_ids = [514 + i for i in range(len(error_tokens))]
+        error_pos_ids = [1] * len(error_tokens)
 
     source_tokens_f = source_tokens + error_tokens
     source_ids_f = tokenizer.convert_tokens_to_ids(source_tokens_f)
@@ -151,7 +155,9 @@ def convert_examples_to_features(js, tokenizer, args) -> list[InputFeatures]:
 
 
 class TextDataset(Dataset):
-    def __init__(self, tokenizer, args, file_path="../dataset/train_err_cls.jsonl"):
+    def __init__(
+        self, tokenizer, args, file_path="../dataset/train_err_cls.jsonl", w_error=True
+    ):
         self.examples = []
         data = []
         num_file = sum([1 for i in open(file_path, "r")])
@@ -164,7 +170,9 @@ class TextDataset(Dataset):
                 except:
                     print(line)
         for js in tqdm(data):
-            self.examples.extend(convert_examples_to_features(js, tokenizer, args))
+            self.examples.extend(
+                convert_examples_to_features(js, tokenizer, args, w_error=w_error)
+            )
         if "train" in file_path:
             for idx, example in enumerate(self.examples[:3]):
                 logger.info("*** Example ***")
@@ -915,7 +923,7 @@ def main():
         if args.local_rank not in [-1, 0]:
             torch.distributed.barrier()  # Barrier to make sure only the first process in distributed training process the dataset, and the others will use the cache
 
-        train_dataset = TextDataset(tokenizer, args, args.train_data_file)
+        train_dataset = TextDataset(tokenizer, args, args.train_data_file, w_error=True)
 
         if args.local_rank == 0:
             torch.distributed.barrier()

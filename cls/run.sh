@@ -28,4 +28,4 @@ CUDA_VISIBLE_DEVICES=3,4 python3 run.py \
                 --nohang \
                 --nocrash \
                 --n_class $n_class \
-                --seed 123456 2>&1| tee ./exception_train.log.txt &
+                --seed 123456 2>&1| tee ./labels.log.txt &
