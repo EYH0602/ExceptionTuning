@@ -557,6 +557,94 @@ def test(args, model, tokenizer):
     return result
 
 
+def test_labels(args, model, tokenizer):
+    # Loop to handle MNLI double evaluation (matched, mis-matched)
+    eval_dataset = TextDataset(tokenizer, args, args.test_data_file)
+
+    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
+    # Note that DistributedSampler samples randomly
+    eval_sampler = (
+        SequentialSampler(eval_dataset)
+        if args.local_rank == -1
+        else DistributedSampler(eval_dataset)
+    )
+    eval_dataloader = DataLoader(
+        eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
+    )
+
+    # multi-gpu evaluate
+    if args.n_gpu > 1:
+        model = torch.nn.DataParallel(model)
+
+    # Eval!
+    logger.info("***** Running Test *****")
+    logger.info("  Num examples = %d", len(eval_dataset))
+    logger.info("  Batch size = %d", args.eval_batch_size)
+
+    eval_loss = 0.0
+    nb_eval_steps = 0
+    model.eval()
+
+    # Initialize dictionaries for category-wise accuracy
+    correct_predictions_per_category = {}
+    total_examples_per_category = {}
+
+    vecs = []
+    labels = []
+    for batch in eval_dataloader:
+        inputs = batch[0].to(args.device)
+        inputs_type_ids = batch[1].to(args.device)
+        inputs_pos_ids = batch[2].to(args.device)
+        attention_mask = inputs.ne(tokenizer.pad_token_id).to(args.device)
+        label = batch[3].to(args.device)
+
+        with torch.no_grad():
+            output = model(
+                input_ids=inputs, attention_mask=attention_mask, labels=label
+            )
+            lm_loss = output.loss
+            logits = output.logits
+            vec = logits.argmax(axis=-1)
+            eval_loss += lm_loss.mean().item()
+            vecs.append(vec.cpu().numpy())
+            labels.append(label.cpu().numpy())
+
+            # Update correct predictions and total examples per category
+            for i, label_val in enumerate(label.cpu().numpy()):
+                if label_val not in total_examples_per_category:
+                    total_examples_per_category[label_val] = 0
+                    correct_predictions_per_category[label_val] = 0
+                total_examples_per_category[label_val] += 1
+                if vec[i] == label_val:
+                    correct_predictions_per_category[label_val] += 1
+
+        nb_eval_steps += 1
+
+    vecs = np.concatenate(vecs, 0)
+    labels = np.concatenate(labels, 0)
+    eval_acc = accuracy_score(labels, vecs)
+    eval_loss = eval_loss / nb_eval_steps
+    perplexity = torch.tensor(eval_loss)
+
+    # test_f1 = f1_score(labels, vecs, average="macro")
+    # test_precision = precision_score(labels, vecs, average="macro")
+    # test_recall = recall_score(labels, vecs, average="macro")
+
+    # Calculate accuracy for each category
+    result = {
+        "test_loss": float(perplexity),
+        "test_acc": float(eval_acc),
+    }
+    for category in total_examples_per_category:
+        accuracy = (
+            correct_predictions_per_category[category]
+            / total_examples_per_category[category]
+        )
+        result[f"acc_{str(category)}"] = accuracy
+
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
 
