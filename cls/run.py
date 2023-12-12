@@ -21,7 +21,7 @@ from torch.utils.data import (
     TensorDataset,
 )
 from torch.utils.data.distributed import DistributedSampler
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 import json
 
 try:
@@ -87,7 +87,9 @@ class InputFeatures(object):
         self.pos_ids = pos_ids
 
 
-def convert_examples_to_features(js, tokenizer, args) -> list[InputFeatures]:
+def convert_examples_to_features(
+    js, tokenizer, args, w_error=True
+) -> list[InputFeatures]:
     # source
     results = []
     code = " ".join(js["code"].split())
@@ -97,15 +99,20 @@ def convert_examples_to_features(js, tokenizer, args) -> list[InputFeatures]:
     source_type_ids = [0] * len(source_ids)
     source_pos_ids = [i for i in range(2, len(source_ids) + 2)]
 
-    """add fuzz data"""
+    """add error data"""
     error_prompt = tokenizer.tokenize(args.error_prompt)
 
-    # using prompt
-    error_tokens = (
-        error_prompt + tokenizer.tokenize(js["error"]) + [tokenizer.sep_token]
-    )
-    error_type_ids = [514 + i for i in range(len(error_tokens))]
-    error_pos_ids = [1] * len(error_tokens)
+    if not w_error:
+        error_type_ids = []
+        error_pos_ids = []
+        error_tokens = []
+    else:
+        # using prompt
+        error_tokens = (
+            error_prompt + tokenizer.tokenize(js["error"]) + [tokenizer.sep_token]
+        )
+        error_type_ids = [514 + i for i in range(len(error_tokens))]
+        error_pos_ids = [1] * len(error_tokens)
 
     source_tokens_f = source_tokens + error_tokens
     source_ids_f = tokenizer.convert_tokens_to_ids(source_tokens_f)
@@ -148,7 +155,9 @@ def convert_examples_to_features(js, tokenizer, args) -> list[InputFeatures]:
 
 
 class TextDataset(Dataset):
-    def __init__(self, tokenizer, args, file_path="../dataset/train_err_cls.jsonl"):
+    def __init__(
+        self, tokenizer, args, file_path="../dataset/train_err_cls.jsonl", w_error=True
+    ):
         self.examples = []
         data = []
         num_file = sum([1 for i in open(file_path, "r")])
@@ -161,7 +170,9 @@ class TextDataset(Dataset):
                 except:
                     print(line)
         for js in tqdm(data):
-            self.examples.extend(convert_examples_to_features(js, tokenizer, args))
+            self.examples.extend(
+                convert_examples_to_features(js, tokenizer, args, w_error=w_error)
+            )
         if "train" in file_path:
             for idx, example in enumerate(self.examples[:3]):
                 logger.info("*** Example ***")
@@ -531,7 +542,105 @@ def test(args, model, tokenizer):
     eval_loss = eval_loss / nb_eval_steps
     perplexity = torch.tensor(eval_loss)
 
-    result = {"test_loss": float(perplexity), "test_acc": float(eval_acc)}
+    test_f1 = f1_score(labels, vecs, average="macro")
+    test_precision = precision_score(labels, vecs, average="macro")
+    test_recall = recall_score(labels, vecs, average="macro")
+
+    result = {
+        "test_loss": float(perplexity),
+        "test_acc": float(eval_acc),
+        "test_f1": float(test_f1),
+        "test_precision": float(test_precision),
+        "test_recall": float(test_recall),
+    }
+
+    return result
+
+
+def test_labels(args, model, tokenizer):
+    # Loop to handle MNLI double evaluation (matched, mis-matched)
+    eval_dataset = TextDataset(tokenizer, args, args.test_data_file)
+
+    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
+    # Note that DistributedSampler samples randomly
+    eval_sampler = (
+        SequentialSampler(eval_dataset)
+        if args.local_rank == -1
+        else DistributedSampler(eval_dataset)
+    )
+    eval_dataloader = DataLoader(
+        eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
+    )
+
+    # multi-gpu evaluate
+    if args.n_gpu > 1:
+        model = torch.nn.DataParallel(model)
+
+    # Eval!
+    logger.info("***** Running Test *****")
+    logger.info("  Num examples = %d", len(eval_dataset))
+    logger.info("  Batch size = %d", args.eval_batch_size)
+
+    eval_loss = 0.0
+    nb_eval_steps = 0
+    model.eval()
+
+    # Initialize dictionaries for category-wise accuracy
+    correct_predictions_per_category = {}
+    total_examples_per_category = {}
+
+    vecs = []
+    labels = []
+    for batch in eval_dataloader:
+        inputs = batch[0].to(args.device)
+        inputs_type_ids = batch[1].to(args.device)
+        inputs_pos_ids = batch[2].to(args.device)
+        attention_mask = inputs.ne(tokenizer.pad_token_id).to(args.device)
+        label = batch[3].to(args.device)
+
+        with torch.no_grad():
+            output = model(
+                input_ids=inputs, attention_mask=attention_mask, labels=label
+            )
+            lm_loss = output.loss
+            logits = output.logits
+            vec = logits.argmax(axis=-1)
+            eval_loss += lm_loss.mean().item()
+            vecs.append(vec.cpu().numpy())
+            labels.append(label.cpu().numpy())
+
+            # Update correct predictions and total examples per category
+            for i, label_val in enumerate(label.cpu().numpy()):
+                if label_val not in total_examples_per_category:
+                    total_examples_per_category[label_val] = 0
+                    correct_predictions_per_category[label_val] = 0
+                total_examples_per_category[label_val] += 1
+                if vec[i] == label_val:
+                    correct_predictions_per_category[label_val] += 1
+
+        nb_eval_steps += 1
+
+    vecs = np.concatenate(vecs, 0)
+    labels = np.concatenate(labels, 0)
+    eval_acc = accuracy_score(labels, vecs)
+    eval_loss = eval_loss / nb_eval_steps
+    perplexity = torch.tensor(eval_loss)
+
+    # test_f1 = f1_score(labels, vecs, average="macro")
+    # test_precision = precision_score(labels, vecs, average="macro")
+    # test_recall = recall_score(labels, vecs, average="macro")
+
+    # Calculate accuracy for each category
+    result = {
+        "test_loss": float(perplexity),
+        "test_acc": float(eval_acc),
+    }
+    for category in total_examples_per_category:
+        accuracy = (
+            correct_predictions_per_category[category]
+            / total_examples_per_category[category]
+        )
+        result[f"acc_{str(category)}"] = accuracy
 
     return result
 
@@ -902,7 +1011,7 @@ def main():
         if args.local_rank not in [-1, 0]:
             torch.distributed.barrier()  # Barrier to make sure only the first process in distributed training process the dataset, and the others will use the cache
 
-        train_dataset = TextDataset(tokenizer, args, args.train_data_file)
+        train_dataset = TextDataset(tokenizer, args, args.train_data_file, w_error=True)
 
         if args.local_rank == 0:
             torch.distributed.barrier()

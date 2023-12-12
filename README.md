@@ -25,7 +25,7 @@ We use [CodeNet Python800](https://arxiv.org/abs/2105.12655) dataset on this tas
 
 #### Download and Preprocess
 
-The process for dataset is similar with clone detection unless
+The process for dataset is similar with clone detection.
 ```shell
 python preprocess_cls.py
 ```
@@ -44,11 +44,7 @@ For each file, each line in the uncompressed file represents one function. One r
    - **index:** the index of example
    - **line:** the line of code that triggers the error
 
-#### Data Statistics
-
-Data statistics of the dataset are shown in the below table:
-
-ToDo
+You can find the raw and processed dataset shared on [Google Drive](https://drive.google.com/drive/folders/1wjSqOsBA2vd3zj7kr6LsaBEGouLcrERL?usp=sharing).
 
 
 

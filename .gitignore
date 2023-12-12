@@ -10,6 +10,6 @@ dataset/Project_CodeNet_Python800
 __pycache__/
 
 microsoft/*
-log.txt
+*log.txt
 
 cls/savedmodels/*
